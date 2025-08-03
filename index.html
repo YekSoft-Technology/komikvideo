@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Özel Video Oynatıcı</title>
+    <style>
+        :root {
+            --player-color: #00a8ff; /* Oynatıcının ana rengi */
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: #212121;
+            font-family: Arial, sans-serif;
+        }
+
+        .player {
+            max-width: 800px;
+            width: 100%;
+            position: relative;
+            overflow: hidden;
+            border-radius: 10px;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+        }
+
+        /* Video üzerine gelince kontrolleri göster */
+        .player:hover .player__controls {
+            transform: translateY(0);
+        }
+
+        /* Varsayılan kontrolleri tamamen gizle */
+        .player__video::-webkit-media-controls {
+            display: none !important;
+        }
+        .player__video {
+            width: 100%;
+            display: block;
+        }
+
+        .player__controls {
+            display: flex;
+            position: absolute;
+            bottom: 0;
+            width: 100%;
+            transform: translateY(100%) translateY(-5px);
+            transition: all .3s;
+            flex-wrap: wrap;
+            background: rgba(0,0,0,0.6);
+            backdrop-filter: blur(5px);
+        }
+
+        .progress {
+            flex: 10;
+            position: relative;
+            display: flex;
+            flex-basis: 100%;
+            height: 15px;
+            transition: height 0.3s;
+            background: rgba(0,0,0,0.5);
+            cursor: ew-resize;
+        }
+
+        .progress__filled {
+            width: 50%;
+            background: var(--player-color);
+            flex: 0;
+            flex-basis: 0%;
+        }
+
+        .player__button {
+            background: none;
+            border: 0;
+            line-height: 1;
+            color: white;
+            text-align: center;
+            outline: 0;
+            padding: 10px 15px;
+            cursor: pointer;
+            font-size: 20px;
+        }
+        .player__button:hover {
+            color: var(--player-color);
+        }
+
+        .player__slider {
+            width: 100px;
+            margin: 0 15px;
+        }
+        
+        /* Kaydırıcı (range input) stilleri */
+        input[type=range] {
+            -webkit-appearance: none;
+            background: transparent;
+            width: 100px;
+            margin: 0 15px;
+        }
+        input[type=range]:focus {
+            outline: none;
+        }
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 8.4px;
+            cursor: pointer;
+            background: rgba(255,255,255,0.3);
+            border-radius: 1.3px;
+        }
+        input[type=range]::-webkit-slider-thumb {
+            height: 15px;
+            width: 15px;
+            border-radius: 50px;
+            background: white;
+            cursor: pointer;
+            -webkit-appearance: none;
+            margin-top: -3.5px;
+        }
+
+        .time-display {
+            color: white;
+            padding: 0 15px;
+            font-size: 14px;
+            align-self: center;
+        }
+
+    </style>
+</head>
+<body>
+
+    <div class="player">
+        <video class="player__video" src="https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4"
+            crossorigin="anonymous"></video>
+
+        <div class="player__controls">
+            <div class="progress">
+                <div class="progress__filled"></div>
+            </div>
+            <button class="player__button toggle" title="Oynat/Durdur">►</button>
+            <input type="range" name="volume" class="player__slider" min="0" max="1" step="0.05" value="1">
+            <div class="time-display">00:00 / 00:00</div>
+            <button class="player__button fullscreen" title="Tam Ekran">[ ]</button>
+        </div>
+    </div>
+
+    <script>
+        /* 1. Elementleri Seç */
+        const player = document.querySelector('.player');
+        const video = player.querySelector('.player__video');
+        const progress = player.querySelector('.progress');
+        const progressBar = player.querySelector('.progress__filled');
+        const toggle = player.querySelector('.toggle');
+        const volumeSlider = player.querySelector('input[name="volume"]');
+        const timeDisplay = player.querySelector('.time-display');
+        const fullscreenBtn = player.querySelector('.fullscreen');
+
+        /* 2. Fonksiyonları Oluştur */
+
+        // Oynat/Durdur fonksiyonu
+        function togglePlay() {
+            const method = video.paused ? 'play' : 'pause';
+            video[method](); // video.play() veya video.pause() çalıştırır
+        }
+
+        // Buton ikonunu güncelle (► veya ❚ ❚)
+        function updateButton() {
+            const icon = this.paused ? '►' : '❚ ❚';
+            toggle.textContent = icon;
+        }
+
+        // İlerleme çubuğunu güncelle
+        function handleProgress() {
+            const percent = (video.currentTime / video.duration) * 100;
+            progressBar.style.flexBasis = `${percent}%`;
+        }
+        
+        // Zaman göstergesini formatla ve güncelle
+        function formatTime(time) {
+            const minutes = Math.floor(time / 60);
+            const seconds = Math.floor(time % 60);
+            return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+        }
+        
+        function updateTimeDisplay() {
+            timeDisplay.textContent = `${formatTime(video.currentTime)} / ${formatTime(video.duration)}`;
+        }
+
+        // İlerleme çubuğunda ileri/geri sarma
+        function scrub(e) {
+            const scrubTime = (e.offsetX / progress.offsetWidth) * video.duration;
+            video.currentTime = scrubTime;
+        }
+
+        // Ses seviyesini ayarla
+        function handleVolumeChange() {
+            video.volume = this.value;
+        }
+        
+        // Tam ekran fonksiyonu
+        function toggleFullscreen() {
+            if (!document.fullscreenElement) {
+                player.requestFullscreen().catch(err => {
+                    alert(`Tam ekran modu etkinleştirilemedi: ${err.message}`);
+                });
+            } else {
+                document.exitFullscreen();
+            }
+        }
+
+        /* 3. Olay Dinleyicilerini (Event Listeners) Ekle */
+        
+        // Videoya tıklayınca oynat/durdur
+        video.addEventListener('click', togglePlay);
+        // Oynatma başlayınca butonu güncelle
+        video.addEventListener('play', updateButton);
+        // Duraklayınca butonu güncelle
+        video.addEventListener('pause', updateButton);
+        // Video zamanı ilerledikçe çubuğu ve zamanı güncelle
+        video.addEventListener('timeupdate', handleProgress);
+        video.addEventListener('timeupdate', updateTimeDisplay);
+        // Videonun metadata'sı yüklendiğinde toplam süreyi göster
+        video.addEventListener('loadedmetadata', updateTimeDisplay);
+
+        // Butona tıklayınca oynat/durdur
+        toggle.addEventListener('click', togglePlay);
+        
+        // Ses ayarı değişince sesi güncelle
+        volumeSlider.addEventListener('change', handleVolumeChange);
+        volumeSlider.addEventListener('mousemove', handleVolumeChange);
+
+        // İlerleme çubuğuna tıklayınca videoda atla
+        let mousedown = false;
+        progress.addEventListener('click', scrub);
+        progress.addEventListener('mousemove', (e) => mousedown && scrub(e));
+        progress.addEventListener('mousedown', () => mousedown = true);
+        progress.addEventListener('mouseup', () => mousedown = false);
+        
+        // Tam ekran butonuna tıklayınca
+        fullscreenBtn.addEventListener('click', toggleFullscreen);
+
+    </script>
+</body>
+</html>
